@@ -1,5 +1,6 @@
 import express, { Router, Response } from 'express';
 
+import { IMiddleware } from './middleware.interface';
 import { ILogger } from '../logger/logger.interface';
 import { IRoute } from './route.interface';
 import { IDatabase } from '../database/database.interface';
@@ -24,12 +25,16 @@ export abstract class BaseController {
 	}
 
 	protected addRoutes(routes: IRoute[]): void {
-		routes.forEach(({ method, path, func }) => {
+		routes.forEach(({ method, path, func, middlewares }) => {
 			this.logger.log(
 				`base.controller.addRoutes. Method: ${method}. Path: ${this.parentRouterPath || ''}${path}`,
 			);
 
-			this._router[method](path, func.bind(this));
+			const bindedMiddlewares = middlewares?.map((m: IMiddleware) => m.execute.bind(m));
+			const handler = func.bind(this);
+			const pipeline = bindedMiddlewares ? [...bindedMiddlewares, handler] : handler;
+
+			this._router[method](path, pipeline);
 		});
 	}
 
@@ -38,9 +43,9 @@ export abstract class BaseController {
 		return res.status(code).json(message);
 	}
 
-	protected sendError(res: Response, err: Error): Response {
+	protected sendError(res: Response, err: Error, code?: number): Response {
 		this.logger.error(err);
-		return res.status(404).json(err.message);
+		return res.status(code || 404).json(err.message);
 	}
 
 	protected sendOk<T>(res: Response, message: T): Response {

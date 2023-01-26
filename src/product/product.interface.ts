@@ -1,8 +1,9 @@
 export interface IProduct {
-	title: string;
-	price: string | null;
-	description: string | null;
-	img: string | null;
-	logger: unknown;
+	title?: string | undefined;
+	id?: string | undefined;
+	price?: string | undefined;
+	description?: string | undefined;
+	img?: string | undefined;
+	logger?: unknown;
 }
 [];

@@ -4,11 +4,19 @@ import { DParentRoutePath } from '../common/parentRoutePath.d';
 import { IDatabase } from '../database/database.interface';
 import { ILogger } from '../logger/logger.interface';
 import { IProduct } from './product.interface';
+import { IProductService } from './product.service.interface';
 
 import { BaseController } from '../common/base.controller';
 
 export class ProductController extends BaseController {
-	constructor(db: IDatabase, logger: ILogger, parentRouterPath: DParentRoutePath) {
+	private _service: IProductService;
+
+	constructor(
+		db: IDatabase,
+		logger: ILogger,
+		parentRouterPath: DParentRoutePath,
+		productService: IProductService,
+	) {
 		super(db, logger, parentRouterPath);
 
 		this.addRoutes([
@@ -18,75 +26,62 @@ export class ProductController extends BaseController {
 			{ method: 'get', path: '/get', func: this.get },
 			{ method: 'use', path: '/', func: this.default },
 		]);
+		this._service = productService;
 	}
 
-	private add(req: Request, res: Response): void {
-		const { title, price = null, description = null, img = null } = req.body;
-		this.db
-			.execute(
-				`
-					INSERT INTO products (title, price, description, img)
-					VALUES (?, ?, ?, ?)
-				`,
-				[title, price, description, img],
-			)
-			.then(() => {
-				this.send(res, 201, req.body);
-			})
-			.catch((err) => this.sendError(res, err));
+	private async add({ body }: Request, res: Response): Promise<void> {
+		const product = await this._service.addProduct(body);
+
+		if (product) {
+			this.send(res, 201, product);
+			return;
+		}
+
+		this.sendError(res, new Error('Impossible to create such product'));
 	}
 
-	private edit(req: Request, res: Response): void {
-		//TODO AFTER adding CRM. only changed fields shall be send and updated
-		const { id, title, price = null, description = null, img = null } = req.body;
+	private async edit({ body }: Request, res: Response): Promise<void> {
+		const product = await this._service.editProduct(body);
 
-		this.db
-			.execute(
-				`
-					UPDATE products
-					SET title=?, price=?, description=?, img=?
-					WHERE id=?
-				`,
-				[title, price, description, img, Number(id)],
-			)
-			.then(() => {
-				this.sendOk(res, `SUCCESS edit product ${req.body}`);
-			})
-			.catch((err) => this.sendError(res, err));
+		if (product) {
+			this.sendOk(res, `SUCCESS edit product ${product}`);
+			return;
+		}
+
+		this.sendError(res, new Error('Impossible to change this product'));
 	}
 
-	private delete(req: Request, res: Response): void {
-		this.db
-			.execute(
-				`
-		    DELETE FROM products WHERE id=?
-		  `,
-				[Number(req.body.id)],
-			)
-			.then(() => {
-				res.redirect('/');
-				this.send(res, 204);
-			})
-			.catch((err) => this.sendError(res, err));
+	private async delete({ body }: Request, res: Response): Promise<void> {
+		const product = await this._service.deleteProduct(body);
+
+		if (product) {
+			res.redirect('/');
+			this.send(res, 204);
+			return;
+		}
+
+		this.sendError(res, new Error('Impossible to delete this product'));
 	}
 
-	private get(req: Request, res: Response): void {
-		this.db
-			.execute('SELECT * FROM products WHERE products.id = ?', [Number(req.body.id)])
-			.then((products) => {
-				if (Array.isArray(products)) {
-					return this.sendOk(res, `SUCCESS edit product ${products[0]}`);
-				}
+	private async get({ body }: Request, res: Response): Promise<void> {
+		const product = await this._service.getProduct(body);
 
-				this.sendError(res, new Error('no such product'));
-			})
-			.catch((err) => this.sendError(res, err));
+		if (product) {
+			this.sendOk(res, `SUCCESS edit product ${product}`);
+			return;
+		}
+
+		this.sendError(res, new Error('no such product'));
 	}
 
-	private default(_: Request, res: Response): void {
-		this.db
-			.execute('SELECT * FROM products')
-			.then((products) => this.sendOk(res, `SUCCESS all products: ${products}`))
-			.catch((err) => this.sendError(res, err));
+	private async default(_: Request, res: Response): Promise<void> {
+		const products = await this._service.getProducts();
+
+		if (products) {
+			this.sendOk(res, `SUCCESS all products: ${products}`);
+			return;
+		}
+
+		this.sendError(res, new Error('no products found'));
 	}
 }
