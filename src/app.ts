@@ -1,30 +1,24 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express } from 'express';
 import bodyParser from 'body-parser';
+import { StatusCodes } from 'http-status-codes';
+import { inject, injectable } from 'inversify';
 
-import { PORT } from './constants';
-import { ILogger } from './logger/logger.interface';
-import { IErrorsController } from './errors/errors.controller.interface';
-import { ProductController } from './product/product.controller';
-import { UsersController } from './users/users.controller';
+import { TYPES } from './constants/types';
+import { ILoggerService } from './logger/logger.service.interface';
+import { IExceptionController } from './exception/exception.controller.interface';
+import { IProductController } from './product/product.controller.interface';
+import { UserController } from './user/user.controller';
 
+@injectable()
 export class App {
 	private app: Express;
-	private logger: ILogger;
-	private productController: ProductController;
-	private userController: UsersController;
-	private errorsController: IErrorsController;
+	@inject(TYPES.ILoggerService) private logger: ILoggerService;
+	@inject(TYPES.IProductController) private productController: IProductController;
+	@inject(TYPES.UserController) private userController: UserController;
+	@inject(TYPES.IExceptionController) private exceptionController: IExceptionController;
 
-	constructor(
-		logger: ILogger,
-		productController: ProductController,
-		userController: UsersController,
-		errorsController: IErrorsController,
-	) {
+	constructor() {
 		this.app = express();
-		this.logger = logger;
-		this.productController = productController;
-		this.userController = userController;
-		this.errorsController = errorsController;
 	}
 
 	private handleMiddleware(): void {
@@ -38,15 +32,21 @@ export class App {
 	}
 
 	private handleExceptions(): void {
-		this.app.use(this.errorsController.catch.bind(this.errorsController));
+		this.app.use(this.exceptionController.catch.bind(this.exceptionController));
+		this.app.use((req, res) => {
+			res.status(StatusCodes.NOT_FOUND).json({ message: 'Page not found' });
+		});
 	}
 
 	public init(): void {
-		console.log('app.init()');
+		const { APP_ENV, APP_PORT, DB_PORT } = process.env;
+
 		this.handleMiddleware();
 		this.handleRoutes();
 		this.handleExceptions();
-		this.logger.log('INITIALISATION in app.init');
-		this.app.listen(PORT);
+		this.logger.log(
+			`Server in ${APP_ENV} mode, listening on ${APP_PORT} port, database is on ${DB_PORT} port`,
+		);
+		this.app.listen(APP_PORT);
 	}
 }

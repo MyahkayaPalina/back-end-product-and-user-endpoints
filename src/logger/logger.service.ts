@@ -1,8 +1,10 @@
+import { injectable } from 'inversify';
 import { Logger } from 'tslog';
 
-import { ILogger } from './logger.interface';
+import { ILoggerService } from './logger.service.interface';
 
-export class LoggerService implements ILogger {
+@injectable()
+export class LoggerService implements ILoggerService {
 	public logger: Logger<undefined>;
 
 	constructor() {

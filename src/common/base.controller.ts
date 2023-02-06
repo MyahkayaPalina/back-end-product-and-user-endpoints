@@ -1,33 +1,30 @@
 import express, { Router, Response } from 'express';
+import { StatusCodes } from 'http-status-codes';
+import { injectable } from 'inversify';
 
 import { IMiddleware } from './middleware.interface';
-import { ILogger } from '../logger/logger.interface';
+import { ILoggerService } from '../logger/logger.service.interface';
 import { IRoute } from './route.interface';
-import { IDatabase } from '../database/database.interface';
-import { DParentRoutePath } from '../common/parentRoutePath.d';
+import { IBaseController } from './base.controller.interface';
 
-export abstract class BaseController {
+@injectable()
+export abstract class BaseController implements IBaseController {
 	private readonly _router: Router;
+	protected logger: ILoggerService;
 
-	constructor(
-		protected db: IDatabase,
-		private logger: ILogger,
-		protected parentRouterPath: DParentRoutePath,
-	) {
-		this.db = db;
+	constructor(logger: ILoggerService) {
 		this._router = express.Router();
 		this.logger = logger;
-		this.parentRouterPath = parentRouterPath;
 	}
 
 	get router(): Router {
 		return this._router;
 	}
 
-	protected addRoutes(routes: IRoute[]): void {
+	addRoutes(routes: IRoute[], parentRouterPath: string): void {
 		routes.forEach(({ method, path, func, middlewares }) => {
 			this.logger.log(
-				`base.controller.addRoutes. Method: ${method}. Path: ${this.parentRouterPath || ''}${path}`,
+				`base.controller.addRoutes. Method: ${method}. Path: ${parentRouterPath || ''}${path}`,
 			);
 
 			const bindedMiddlewares = middlewares?.map((m: IMiddleware) => m.execute.bind(m));
@@ -38,17 +35,17 @@ export abstract class BaseController {
 		});
 	}
 
-	protected send<T>(res: Response, code: number, message?: T): Response {
+	send<T>(res: Response, code: number, message?: T): void {
 		this.logger.log(`base.controller.send. Res: ${res}. StatusCode: ${code}. Message: ${message}`);
-		return res.status(code).json(message);
+		res.status(code).json(message);
 	}
 
-	protected sendError(res: Response, err: Error, code?: number): Response {
+	sendError(res: Response, err: Error, code?: number): void {
 		this.logger.error(err);
-		return res.status(code || 404).json(err.message);
+		res.status(code || StatusCodes.NOT_FOUND).json(err.message);
 	}
 
-	protected sendOk<T>(res: Response, message: T): Response {
-		return this.send<T>(res, 200, message);
+	sendOk<T>(res: Response, message: T): void {
+		this.send<T>(res, StatusCodes.OK, message);
 	}
 }
