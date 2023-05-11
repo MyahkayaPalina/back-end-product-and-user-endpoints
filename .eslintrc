@@ -1,0 +1,21 @@
+{
+	"root": true,
+	"parser": "@typescript-eslint/parser",
+	"plugins": ["@typescript-eslint", "prettier", "html"],
+	"extends": [
+		"eslint:recommended",
+		"plugin:@typescript-eslint/eslint-recommended",
+		"plugin:@typescript-eslint/recommended",
+		"plugin:prettier/recommended"
+	],
+	"rules": {
+		"no-empty-function": "off",
+		"@typescript-eslint/ban-types": "off",
+		"@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "_" }],
+		"@typescript-eslint/explicit-function-return-type": ["warn"],
+		"prettier/prettier": ["error"]
+	},
+	"settings": {
+		"html/html-extensions": [".hbs"]
+	}
+}
